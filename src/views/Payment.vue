@@ -701,9 +701,19 @@ const feeRateBasisPoints = computed(() => {
 })
 const feeRateDisplay = computed(() => {
   const rate = feeRateBasisPoints.value
-  if (rate === null) return '-'
-  if (rate <= 0) return t('payment.feeFree')
-  return `${basisPointsToPercent(rate)}%`
+  const fixed = paymentResult.value?.fixed_fee !== undefined ? paymentResult.value.fixed_fee : selectedChannel.value?.fixed_fee
+
+  let display = ''
+  if (rate !== null && rate > 0) {
+    display += `${basisPointsToPercent(rate)}%`
+  }
+  if (fixed !== undefined && Number(fixed) > 0) {
+    if (display) display += ' + '
+    display += formatMoney(String(fixed), order.value?.currency)
+  }
+
+  if (!display) return t('payment.feeFree')
+  return display
 })
 const feeAmountCents = computed(() => {
   if (paymentResult.value?.fee_amount !== undefined && paymentResult.value?.fee_amount !== null && paymentResult.value?.fee_amount !== '') {
@@ -711,9 +721,23 @@ const feeAmountCents = computed(() => {
   }
   const rate = feeRateBasisPoints.value
   const base = amountToCents(order.value?.total_amount)
+
+  let fixedFeeCents = 0
+  if (paymentResult.value?.fixed_fee !== undefined) {
+    fixedFeeCents = amountToCents(paymentResult.value.fixed_fee) || 0
+  } else if (selectedChannel.value?.fixed_fee !== undefined) {
+    fixedFeeCents = amountToCents(selectedChannel.value.fixed_fee) || 0
+  }
+
   if (rate === null || base === null) return null
-  if (rate <= 0) return 0
-  return calculateFeeCents(base, rate)
+  let totalFee = fixedFeeCents
+  if (rate > 0 && base !== null) {
+    const fee = calculateFeeCents(base, rate)
+    if (fee !== null) {
+      totalFee += fee
+    }
+  }
+  return totalFee
 })
 const feeAmountDisplay = computed(() => {
   const value = feeAmountCents.value
