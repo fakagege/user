@@ -145,22 +145,45 @@
                     <span v-if="(selectedSku && hasSkuPromotionPrice(selectedSku)) || (!selectedSku && hasPromotionPrice(product))" class="theme-badge theme-badge-danger">
                       {{ t('products.promotionTag') }}
                     </span>
+                    <span v-if="hasMemberPrice" class="theme-badge bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      {{ t('products.memberPriceTag') }}
+                    </span>
                   </div>
                   <!-- 选中 SKU 且有促销价 -->
                   <div v-if="selectedSku && hasSkuPromotionPrice(selectedSku)" class="space-y-2">
                     <div class="flex flex-wrap items-end gap-4">
-                      <span class="theme-price-lg text-rose-600 dark:text-rose-300">
+                      <span v-if="hasMemberPrice && selectedSkuMemberPrice! < Number(getSkuPromotionPriceAmount(selectedSku))" class="theme-price-lg text-amber-600 dark:text-amber-300">
+                        {{ formatPrice(selectedSkuMemberPrice!, siteCurrency) }}
+                      </span>
+                      <span v-else class="theme-price-lg text-rose-600 dark:text-rose-300">
                         {{ formatPrice(getSkuPromotionPriceAmount(selectedSku), siteCurrency) }}
                       </span>
                       <span class="theme-price-original">
                         {{ formatPrice(selectedSku.price_amount, siteCurrency) }}
                       </span>
                     </div>
-                    <p class="text-sm font-medium text-rose-500 dark:text-rose-300">
+                    <p v-if="hasMemberPrice && selectedSkuMemberPrice! < Number(getSkuPromotionPriceAmount(selectedSku))" class="text-sm font-medium text-amber-600 dark:text-amber-300">
+                      {{ t('products.memberPriceTag') }} · {{ t('products.saveAmount') }} {{ formatPrice(Number(selectedSku.price_amount) - selectedSkuMemberPrice!, siteCurrency) }}
+                    </p>
+                    <p v-else class="text-sm font-medium text-rose-500 dark:text-rose-300">
                       {{ t('products.saveAmount') }} {{ formatPrice(getSkuPromotionSaveAmount(selectedSku), siteCurrency) }}
                     </p>
                   </div>
-                  <!-- 选中 SKU 但无促销价 -->
+                  <!-- 选中 SKU 有会员价但无促销价 -->
+                  <div v-else-if="selectedSku && hasMemberPrice" class="space-y-2">
+                    <div class="flex flex-wrap items-end gap-4">
+                      <span class="theme-price-lg text-amber-600 dark:text-amber-300">
+                        {{ formatPrice(selectedSkuMemberPrice!, siteCurrency) }}
+                      </span>
+                      <span class="theme-price-original">
+                        {{ formatPrice(selectedSku.price_amount, siteCurrency) }}
+                      </span>
+                    </div>
+                    <p class="text-sm font-medium text-amber-600 dark:text-amber-300">
+                      {{ t('products.memberPriceTag') }} · {{ t('products.saveAmount') }} {{ formatPrice(Number(selectedSku.price_amount) - selectedSkuMemberPrice!, siteCurrency) }}
+                    </p>
+                  </div>
+                  <!-- 选中 SKU 但无促销价也无会员价 -->
                   <div v-else-if="selectedSku" class="flex items-end gap-4">
                     <span class="theme-price-lg theme-text-accent">
                       {{ formatPrice(selectedSku.price_amount, siteCurrency) }}
@@ -313,7 +336,10 @@
             <div class="flex items-center gap-3 px-4 py-3">
               <!-- Price -->
               <div class="flex-1 min-w-0">
-                <span v-if="selectedSku && hasSkuPromotionPrice(selectedSku)" class="theme-price-sm text-rose-600 dark:text-rose-300 truncate block">
+                <span v-if="selectedSku && hasMemberPrice && selectedSkuMemberPrice! < Number(hasSkuPromotionPrice(selectedSku) ? getSkuPromotionPriceAmount(selectedSku) : selectedSku.price_amount)" class="theme-price-sm text-amber-600 dark:text-amber-300 truncate block">
+                  {{ formatPrice(selectedSkuMemberPrice!, siteCurrency) }}
+                </span>
+                <span v-else-if="selectedSku && hasSkuPromotionPrice(selectedSku)" class="theme-price-sm text-rose-600 dark:text-rose-300 truncate block">
                   {{ formatPrice(getSkuPromotionPriceAmount(selectedSku), siteCurrency) }}
                 </span>
                 <span v-else-if="selectedSku" class="theme-price-sm theme-text-accent truncate block">
@@ -447,6 +473,35 @@ const activeSkus = computed(() => {
 const selectedSku = computed(() => {
   if (selectedSkuId.value <= 0) return null
   return activeSkus.value.find((sku: any) => normalizeSkuId(sku?.id) === selectedSkuId.value) || null
+})
+
+// 会员价相关
+const userMemberLevelId = computed(() => {
+  return Number(userAuthStore.user?.member_level_id || 0)
+})
+
+const getMemberPriceForSku = (skuId: number): number | null => {
+  if (!product.value?.member_prices || !userMemberLevelId.value) return null
+  const prices = product.value.member_prices as Array<{ member_level_id: number; sku_id: number; price_amount: number | string }>
+  // SKU-level override
+  const skuPrice = prices.find((p) => p.member_level_id === userMemberLevelId.value && p.sku_id === skuId)
+  if (skuPrice) return Number(skuPrice.price_amount)
+  // Product-level override (sku_id = 0)
+  const productPrice = prices.find((p) => p.member_level_id === userMemberLevelId.value && p.sku_id === 0)
+  if (productPrice) return Number(productPrice.price_amount)
+  return null
+}
+
+const selectedSkuMemberPrice = computed(() => {
+  if (!selectedSku.value) return null
+  const skuId = normalizeSkuId(selectedSku.value.id)
+  return getMemberPriceForSku(skuId)
+})
+
+const hasMemberPrice = computed(() => {
+  if (!selectedSkuMemberPrice.value) return false
+  const basePrice = Number(selectedSku.value?.price_amount || 0)
+  return selectedSkuMemberPrice.value < basePrice
 })
 
 const normalizeStockNumber = (value: unknown) => {

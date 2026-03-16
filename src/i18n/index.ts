@@ -97,6 +97,7 @@ const messages = {
             searchLabel: '搜索',
             searchPlaceholder: '搜索商品名称',
             promotionTag: '活动价',
+            memberPriceTag: '会员价',
             saveAmount: '立省',
             stockStatus: {
                 unlimited: '库存不限',
@@ -609,6 +610,7 @@ const messages = {
             previewOriginal: '原始金额',
             previewCoupon: '优惠券',
             previewPromotion: '活动价',
+            previewMemberDiscount: '会员优惠',
             previewTotal: '应付金额',
             previewLoading: '正在计算优惠...',
             couponRefreshing: '优惠码已更新，正在重新计算...',
@@ -949,6 +951,7 @@ const messages = {
             searchLabel: '搜尋',
             searchPlaceholder: '搜尋商品名稱',
             promotionTag: '活動價',
+            memberPriceTag: '會員價',
             saveAmount: '現省',
             stockStatus: {
                 unlimited: '庫存不限',
@@ -1486,6 +1489,7 @@ const messages = {
             previewOriginal: '原始金額',
             previewCoupon: '優惠券',
             previewPromotion: '活動價',
+            previewMemberDiscount: '會員優惠',
             previewTotal: '應付金額',
             previewLoading: '正在計算優惠...',
             couponRefreshing: '優惠碼已更新，正在重新計算...',
@@ -1801,6 +1805,7 @@ const messages = {
             searchLabel: 'Search',
             searchPlaceholder: 'Search products',
             promotionTag: 'Promo',
+            memberPriceTag: 'VIP',
             saveAmount: 'Save',
             stockStatus: {
                 unlimited: 'Unlimited stock',
@@ -2338,6 +2343,7 @@ const messages = {
             previewOriginal: 'Original amount',
             previewCoupon: 'Coupon',
             previewPromotion: 'Promotion',
+            previewMemberDiscount: 'Member Discount',
             previewTotal: 'Amount due',
             previewLoading: 'Calculating discounts...',
             couponRefreshing: 'Coupon updated, recalculating...',

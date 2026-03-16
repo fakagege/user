@@ -239,8 +239,23 @@ export interface UserProfileData {
     nickname: string
     email_verified_at?: string | null
     locale: string
+    member_level_id?: number
+    total_recharged?: number | string
+    total_spent?: number | string
     email_change_mode?: 'bind_only' | 'change_with_old_and_new'
     password_change_mode?: 'set_without_old' | 'change_with_old'
+}
+
+export interface PublicMemberLevel {
+    id: number
+    name: Record<string, string>
+    slug: string
+    icon: string
+    discount_rate: number
+    recharge_threshold: number
+    spend_threshold: number
+    is_default: boolean
+    sort_order: number
 }
 
 export interface UpdateUserProfilePayload {
@@ -492,6 +507,10 @@ export const configAPI = {
 
 export const captchaAPI = {
     image: () => api.get<ApiResponse>('/public/captcha/image'),
+}
+
+export const memberLevelAPI = {
+    list: () => api.get<ApiResponse<PublicMemberLevel[]>>('/public/member-levels'),
 }
 
 export const userProfileAPI = {
