@@ -7,7 +7,7 @@
     :style="{ animationDelay: `${index * animationStep}ms` }"
     @click="$emit('click', product.slug)">
     <!-- Image Area -->
-    <div class="h-36 md:h-44 lg:h-40 overflow-hidden theme-surface-muted relative shrink-0">
+    <div class="aspect-[4/3] overflow-hidden theme-surface-muted relative shrink-0">
       <div class="absolute inset-0 bg-black/15 z-10"></div>
       <img v-if="product.images && getFirstImageUrl(product.images)" :src="getFirstImageUrl(product.images)"
         :alt="getLocalizedText(product.title)"

@@ -55,9 +55,9 @@
                 @touchstart="onImageTouchStart"
                 @touchend="onImageTouchEnd">
                 <img v-if="currentImage" :src="currentImage" :alt="getLocalizedText(product.title)"
-                  class="w-full h-[300px] md:h-[400px] lg:h-[500px] object-cover rounded-xl border theme-border relative z-10 shadow-lg" />
+                  class="w-full aspect-[4/3] object-cover rounded-xl border theme-border relative z-10 shadow-lg" />
                 <div v-else
-                  class="w-full h-[300px] md:h-[400px] lg:h-[500px] theme-surface-muted rounded-xl border theme-border flex items-center justify-center relative z-10">
+                  class="w-full aspect-[4/3] theme-surface-muted rounded-xl border theme-border flex items-center justify-center relative z-10">
                   <svg class="w-24 h-24 theme-text-muted" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd"
                       d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"

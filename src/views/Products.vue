@@ -255,7 +255,7 @@
                 :style="{ animationDelay: `${idx * 50}ms` }"
                 @click="goToProduct(product.slug)">
                 <!-- Image Area -->
-                <div class="h-36 md:h-56 overflow-hidden theme-surface-muted relative shrink-0">
+                <div class="aspect-[4/3] overflow-hidden theme-surface-muted relative shrink-0">
                   <div class="absolute inset-0 bg-black/15 z-10"></div>
                   <img v-if="product.images && getFirstImageUrl(product.images)" :src="getFirstImageUrl(product.images)"
                     :alt="getLocalizedText(product.title)"
