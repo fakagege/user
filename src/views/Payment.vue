@@ -61,8 +61,8 @@
         <div class="theme-panel rounded-2xl p-6">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 class="text-xl font-bold theme-text-primary">{{ t('payment.resultTitle') }}</h2>
-              <p class="text-sm theme-text-muted mt-1">{{ t('payment.qrTip') }}</p>
+              <h2 class="text-xl font-bold theme-text-primary">{{ paymentResultTitle }}</h2>
+              <p class="text-sm theme-text-muted mt-1">{{ paymentGuideTip }}</p>
               <div class="mt-2 text-xs theme-text-muted">
                 {{ t('payment.methodLabel') }}：{{ resultChannelName }}<span v-if="resultChannelType"> ({{ resultChannelType }})</span>
               </div>
@@ -83,7 +83,7 @@
             <div class="lg:col-span-2 space-y-4">
               <div v-if="showQRCode"
                 class="theme-surface-soft border rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-                <div class="text-sm theme-text-muted mb-4">{{ t('payment.qrTitle') }}</div>
+                <div class="text-sm theme-text-muted mb-4">{{ paymentGuideTitle }}</div>
                 <img :src="qrImageUrl" alt="QR Code" class="w-56 h-56 object-contain" />
                 <div v-if="qrUsingPayLinkFallback" class="mt-3 text-xs theme-text-muted">
                   {{ t('payment.qrFallbackHint') }}
@@ -323,8 +323,8 @@
                 <img :src="qrImageUrl" alt="QR Code" class="w-48 h-48 object-contain" />
               </div>
               <div class="text-sm theme-text-secondary space-y-3">
-                <div class="theme-text-primary font-semibold">{{ t('payment.qrTitle') }}</div>
-                <div>{{ t('payment.qrTip') }}</div>
+                <div class="theme-text-primary font-semibold">{{ paymentGuideTitle }}</div>
+                <div>{{ paymentGuideTip }}</div>
                 <div v-if="qrUsingPayLinkFallback" class="text-xs theme-text-muted">
                   {{ t('payment.qrFallbackHint') }}
                 </div>
@@ -570,6 +570,9 @@ const interactionLabel = computed(() => {
 })
 
 const interactionMode = computed(() => String(paymentResult.value?.interaction_mode || '').toLowerCase())
+const paymentResultTitle = computed(() => interactionMode.value === 'redirect' ? t('payment.resultRedirectTitle') : t('payment.resultTitle'))
+const paymentGuideTitle = computed(() => interactionMode.value === 'redirect' ? t('payment.redirectTitle') : t('payment.qrTitle'))
+const paymentGuideTip = computed(() => interactionMode.value === 'redirect' ? t('payment.redirectTip') : t('payment.qrTip'))
 
 const showPayLink = computed(() => {
   return interactionMode.value === 'redirect' || Boolean(payLink.value)
