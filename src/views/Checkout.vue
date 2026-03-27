@@ -86,6 +86,9 @@
                       </router-link>
                       <div class="mt-1 text-xs theme-text-muted">{{ t('checkout.quantityLabel') }}：{{ item.quantity }}</div>
                       <div v-if="itemSkuDisplay(item)" class="mt-1 text-xs theme-text-muted">{{ t('checkout.skuLabel') }}：{{ itemSkuDisplay(item) }}</div>
+                      <div v-if="selectedSecretText(item)" class="mt-1 text-xs text-emerald-600 dark:text-emerald-300">
+                        自选卡密：{{ selectedSecretText(item) }}
+                      </div>
                       <div
                         v-if="itemStockHint(item)"
                         class="mt-1 text-xs"
@@ -925,6 +928,7 @@ const buildItemsPayload = () => cartItems.value.map(item => ({
   product_id: item.productId,
   sku_id: normalizeSkuId(item.skuId) || undefined,
   quantity: item.quantity,
+  selected_secret_ids: Array.isArray(item.selectedSecretIds) && item.selectedSecretIds.length ? item.selectedSecretIds : undefined,
   fulfillment_type: item.fulfillmentType || undefined,
 }))
 
@@ -1135,7 +1139,11 @@ onUnmounted(() => {
   debouncedLoadPreview.cancel()
 })
 
-const cartItemKey = (item: CartItem) => `${item.productId}:${normalizeSkuId(item.skuId)}`
+const cartItemKey = (item: CartItem) => `${item.productId}:${normalizeSkuId(item.skuId)}:${Array.isArray(item.selectedSecretIds) ? item.selectedSecretIds.join(',') : ''}`
+
+const selectedSecretText = (item: CartItem) => Array.isArray(item.selectedSecretDisplays) && item.selectedSecretDisplays.length
+  ? item.selectedSecretDisplays.join(' / ')
+  : ''
 
 const itemSkuDisplay = (item: CartItem) => buildSkuDisplayText({
   skuCode: item.skuCode,

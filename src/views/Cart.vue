@@ -92,6 +92,7 @@
                     </router-link>
                     <p class="mt-1 text-sm theme-text-muted">{{ t('cart.priceLabel') }}：{{ formatPrice(item.priceAmount, totalCurrency) }}</p>
                     <p v-if="itemSkuDisplay(item)" class="mt-1 text-xs theme-text-muted truncate">{{ t('cart.skuLabel') }}：{{ itemSkuDisplay(item) }}</p>
+                    <p v-if="selectedSecretText(item)" class="mt-1 text-xs text-emerald-600 dark:text-emerald-300">自选卡密：{{ selectedSecretText(item) }}</p>
                     <p v-if="itemStockHint(item)" class="mt-1 text-xs theme-text-muted">{{ itemStockHint(item) }}</p>
                     <div class="mt-2 md:mt-3 flex flex-wrap gap-2">
                       <span
@@ -113,7 +114,7 @@
                     </div>
                   </div>
                   <button
-                    @click="cartStore.removeItem(item.productId, item.skuId)"
+                    @click="cartStore.removeItem(item.productId, item.skuId, item.selectedSecretIds)"
                     class="text-sm theme-link-muted transition-colors hover:text-red-500 shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   >
                     <svg class="w-4 h-4 md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +128,7 @@
                   <div class="flex items-center gap-2">
                     <button
                       @click="updateQty(item, item.quantity - 1)"
-                      :disabled="item.quantity <= 1"
+                      :disabled="item.quantity <= 1 || hasSelectedSecrets(item)"
                       class="h-10 w-10 rounded-lg border theme-btn-secondary disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center text-base font-medium"
                     >
                       -
@@ -137,6 +138,7 @@
                       :id="`cart-qty-${item.productId}`"
                       :name="`cart-qty-${item.productId}`"
                       :value="item.quantity"
+                      :disabled="hasSelectedSecrets(item)"
                       @change="handleQtyChange(item, $event)"
                       min="1"
                       :max="itemMaxQuantity(item)"
@@ -144,7 +146,7 @@
                     />
                     <button
                       @click="updateQty(item, item.quantity + 1)"
-                      :disabled="item.quantity >= itemMaxQuantity(item)"
+                      :disabled="hasSelectedSecrets(item) || item.quantity >= itemMaxQuantity(item)"
                       class="h-10 w-10 rounded-lg border theme-btn-secondary disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center text-base font-medium"
                     >
                       +
@@ -156,6 +158,9 @@
                     <p class="text-sm font-semibold theme-text-primary">{{ itemSubtotal(item) }}</p>
                   </div>
                 </div>
+                <p v-if="hasSelectedSecrets(item)" class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
+                  自选卡密商品的数量固定为已勾选卡密数量。
+                </p>
                 <p v-if="quantityWarning(item)" class="mt-3 rounded-lg border theme-alert-warning px-3 py-2 text-xs font-medium">
                   {{ quantityWarning(item) }}
                 </p>
@@ -262,7 +267,7 @@ const updateQty = (item: CartItem, qty: number) => {
     }
     return
   }
-  cartStore.updateQuantity(item.productId, qty, item.skuId)
+  cartStore.updateQuantity(item.productId, qty, item.skuId, item.selectedSecretIds)
 }
 
 const handleQtyChange = (item: CartItem, event: Event) => {
@@ -276,7 +281,13 @@ const handleQtyChange = (item: CartItem, event: Event) => {
   target.value = String(item.quantity)
 }
 
-const cartItemKey = (item: CartItem) => `${item.productId}:${normalizeSkuId(item.skuId)}`
+const cartItemKey = (item: CartItem) => `${item.productId}:${normalizeSkuId(item.skuId)}:${Array.isArray(item.selectedSecretIds) ? item.selectedSecretIds.join(',') : ''}`
+
+const hasSelectedSecrets = (item: CartItem) => Array.isArray(item.selectedSecretIds) && item.selectedSecretIds.length > 0
+
+const selectedSecretText = (item: CartItem) => Array.isArray(item.selectedSecretDisplays) && item.selectedSecretDisplays.length
+  ? item.selectedSecretDisplays.join(' / ')
+  : ''
 
 const itemSkuDisplay = (item: CartItem) => buildSkuDisplayText({
   skuCode: item.skuCode,

@@ -484,12 +484,19 @@ export interface CaptchaPayload {
     turnstile_token?: string
 }
 
+export interface SelectableCardSecret {
+    id: number
+    sku_id: number
+    display_secret: string
+}
+
 export default api
 
 // API 方法
 export const productAPI = {
     list: (params?: any) => api.get<ApiResponse>('/public/products', { params }),
     detail: (slug: string) => api.get<ApiResponse>(`/public/products/${slug}`),
+    selectableSecrets: (slug: string, params?: any) => api.get<ApiResponse<SelectableCardSecret[]>>(`/public/products/${slug}/selectable-secrets`, { params }),
 }
 
 export const postAPI = {

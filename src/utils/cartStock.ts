@@ -4,7 +4,7 @@ import { normalizeSkuId } from './sku'
 
 interface CartStoreLike {
   items: CartItem[]
-  patchItem: (productId: number, skuId: number | undefined, patch: Partial<CartItem>) => void
+  patchItem: (productId: number, skuId: number | undefined, patch: Partial<CartItem>, selectedSecretIds?: number[]) => void
 }
 
 const normalizeStockNumber = (value: unknown) => {
@@ -125,6 +125,6 @@ export const refreshCartStockSnapshots = async (cartStore: CartStoreLike) => {
       skuStockEnforced,
       skuStockSnapshotAt: new Date().toISOString(),
       maxPurchaseQuantity: normalizeOptionalLimitNumber(product?.max_purchase_quantity),
-    })
+    }, item.selectedSecretIds)
   }
 }

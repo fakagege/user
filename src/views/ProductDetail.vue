@@ -258,6 +258,81 @@
                   </p>
                 </div>
 
+                <div v-if="secretSelectionEnabled && selectedSku" class="mb-8 rounded-2xl border theme-border theme-surface-soft p-4">
+                  <div class="mb-2 flex items-center justify-between gap-3">
+                    <h2 class="text-sm font-bold uppercase tracking-widest theme-text-muted">自选卡密</h2>
+                    <span class="text-xs theme-text-muted">已选 {{ selectedSecretCount }} 个</span>
+                  </div>
+                  <p class="mb-3 text-xs theme-text-muted">
+                    不选则默认随机自动发货。
+                    <span v-if="secretSelectionMarkupAmount > 0">每个自选卡密加价 {{ formatPrice(secretSelectionMarkupAmount.toFixed(2), siteCurrency) }}。</span>
+                    <span class="ml-1">前台只显示 `TXXXXX` 这段前缀。</span>
+                  </p>
+                  <div v-if="selectableSecretLoading" class="rounded-xl border border-dashed theme-border px-3 py-4 text-sm theme-text-muted">
+                    正在加载可选卡密...
+                  </div>
+                  <div v-else-if="selectableSecrets.length === 0" class="rounded-xl border border-dashed theme-border px-3 py-4 text-sm theme-text-muted">
+                    当前规格暂无可自选卡密，购买后将自动随机发货。
+                  </div>
+                  <div v-else class="space-y-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <button
+                        v-for="secret in selectableSecrets"
+                        :key="secret.id"
+                        type="button"
+                        class="text-left rounded-2xl border px-3 py-3 transition-all duration-200"
+                        :class="selectableSecretChecked(secret.id)
+                          ? 'border-emerald-400 bg-emerald-50/80 shadow-sm ring-1 ring-emerald-300 dark:border-emerald-700 dark:bg-emerald-950/30 dark:ring-emerald-800'
+                          : 'theme-border bg-background/80 hover:-translate-y-0.5 hover:bg-background'"
+                        @click="toggleSelectableSecret(secret.id)"
+                      >
+                        <div class="flex items-start gap-3">
+                          <span
+                            class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border"
+                            :class="selectableSecretChecked(secret.id)
+                              ? 'border-emerald-500 bg-emerald-500 text-white dark:border-emerald-400 dark:bg-emerald-400 dark:text-emerald-950'
+                              : 'border-slate-300 text-transparent dark:border-slate-600'"
+                          >
+                            <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.2 7.2a1 1 0 01-1.415 0l-3-3a1 1 0 111.414-1.42l2.293 2.294 6.493-6.494a1 1 0 011.415 0z" clip-rule="evenodd" />
+                            </svg>
+                          </span>
+                          <div class="min-w-0 flex-1">
+                            <div class="text-[11px] uppercase tracking-[0.18em] theme-text-muted">卡密前缀</div>
+                            <div class="radio-text mt-2">
+                              <div class="radio-info rounded-xl border border-slate-200 bg-white/90 px-3 py-2 font-mono text-sm theme-text-primary shadow-sm dark:border-slate-700 dark:bg-slate-950/50">
+                                {{ secret.display_secret }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                    <div v-if="selectableSecretPagination.total_page > 1" class="flex items-center justify-between gap-3 text-xs theme-text-muted">
+                      <button
+                        type="button"
+                        class="rounded-lg border theme-border px-3 py-2 disabled:opacity-40"
+                        :disabled="selectableSecretPage <= 1 || selectableSecretLoading"
+                        @click="loadSelectableSecrets(selectableSecretPage - 1)"
+                      >
+                        上一页
+                      </button>
+                      <span>第 {{ selectableSecretPagination.page }} / {{ selectableSecretPagination.total_page }} 页</span>
+                      <button
+                        type="button"
+                        class="rounded-lg border theme-border px-3 py-2 disabled:opacity-40"
+                        :disabled="selectableSecretPage >= selectableSecretPagination.total_page || selectableSecretLoading"
+                        @click="loadSelectableSecrets(selectableSecretPage + 1)"
+                      >
+                        下一页
+                      </button>
+                    </div>
+                    <div v-if="selectedSecretMarkupTotal > 0" class="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
+                      自选加价合计 {{ formatPrice(selectedSecretMarkupTotal.toFixed(2), siteCurrency) }}
+                    </div>
+                  </div>
+                </div>
+
                 <div class="mb-8">
                   <h2 class="mb-3 text-sm font-bold uppercase tracking-widest theme-text-muted">
                     {{ t('productDetail.description') }}
@@ -277,7 +352,7 @@
                     <button
                       type="button"
                       class="w-10 h-10 flex items-center justify-center theme-text-secondary hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
-                      :disabled="quantity <= 1"
+                      :disabled="quantity <= 1 || quantityLockedBySecretSelection"
                       @click="quantity = Math.max(1, quantity - 1)"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -289,13 +364,14 @@
                       inputmode="numeric"
                       class="w-14 h-10 text-center text-sm font-semibold theme-text-primary border-x theme-border bg-transparent outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       :value="quantity"
+                      :disabled="quantityLockedBySecretSelection"
                       @change="handleQuantityInput($event)"
                       @keydown.enter.prevent="($event.target as HTMLInputElement)?.blur()"
                     />
                     <button
                       type="button"
                       class="w-10 h-10 flex items-center justify-center theme-text-secondary hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
-                      :disabled="quantityEffectiveLimit !== null && quantity >= quantityEffectiveLimit"
+                      :disabled="quantityLockedBySecretSelection || (quantityEffectiveLimit !== null && quantity >= quantityEffectiveLimit)"
                       @click="quantity = quantity + 1"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -303,6 +379,7 @@
                       </svg>
                     </button>
                   </div>
+                  <p v-if="quantityLockedBySecretSelection" class="mt-2 text-xs theme-text-muted">已勾选自选卡密时，数量会自动等于勾选数量。</p>
                 </div>
 
               <!-- Purchase Actions (Desktop + original position) -->
@@ -480,6 +557,18 @@ const currentImage = ref<string>('')
 const selectedSkuId = ref(0)
 const quantity = ref(1)
 const purchaseWarning = ref('')
+const selectableSecretPageSize = 8
+const selectableSecrets = ref<Array<{ id: number; display_secret: string }>>([])
+const selectableSecretLoading = ref(false)
+const selectableSecretPage = ref(1)
+const selectableSecretPagination = ref({
+  page: 1,
+  page_size: selectableSecretPageSize,
+  total: 0,
+  total_page: 1,
+})
+const selectedSecretIds = ref<number[]>([])
+const selectedSecretDisplayMap = ref<Record<number, string>>({})
 const purchaseActionsRef = ref<HTMLElement | null>(null)
 const showMobileBar = ref(false)
 let observer: IntersectionObserver | null = null
@@ -514,6 +603,27 @@ const selectedSku = computed(() => {
   if (selectedSkuId.value <= 0) return null
   return activeSkus.value.find((sku: any) => normalizeSkuId(sku?.id) === selectedSkuId.value) || null
 })
+
+const secretSelectionEnabled = computed(() => (
+  Boolean(product.value?.enable_secret_selection) &&
+  String(product.value?.fulfillment_type || '').trim() === 'auto'
+))
+
+const secretSelectionMarkupAmount = computed(() => {
+  const amount = Number(product.value?.secret_selection_markup_amount || 0)
+  if (!Number.isFinite(amount) || amount <= 0) return 0
+  return amount
+})
+
+const selectedSecretCount = computed(() => selectedSecretIds.value.length)
+const quantityLockedBySecretSelection = computed(() => selectedSecretCount.value > 0)
+const effectivePurchaseQuantity = computed(() => (
+  quantityLockedBySecretSelection.value ? selectedSecretCount.value : quantity.value
+))
+const selectedSecretMarkupTotal = computed(() => secretSelectionMarkupAmount.value * selectedSecretCount.value)
+const selectedSecretDisplays = computed(() => selectedSecretIds.value
+  .map((id) => selectedSecretDisplayMap.value[id])
+  .filter((value): value is string => Boolean(value)))
 
 // 会员价相关
 const userMemberLevelId = computed(() => {
@@ -680,6 +790,88 @@ const skuDisplayText = (sku: any) => {
   })
 }
 
+const normalizeSecretIdList = (ids: number[]) => Array.from(new Set(
+  ids
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item) && item > 0)
+    .map((item) => Math.trunc(item))
+))
+
+const sameSelectedSecretIds = (left: number[] = [], right: number[] = []) => {
+  const leftKey = normalizeSecretIdList(left).join(',')
+  const rightKey = normalizeSecretIdList(right).join(',')
+  return leftKey === rightKey
+}
+
+const resetSelectableSecrets = () => {
+  selectableSecrets.value = []
+  selectableSecretPage.value = 1
+  selectableSecretPagination.value = {
+    page: 1,
+    page_size: selectableSecretPageSize,
+    total: 0,
+    total_page: 1,
+  }
+  selectedSecretIds.value = []
+  selectedSecretDisplayMap.value = {}
+}
+
+const loadSelectableSecrets = async (page = 1) => {
+  if (!product.value || !secretSelectionEnabled.value || !selectedSku.value) {
+    resetSelectableSecrets()
+    return
+  }
+  selectableSecretLoading.value = true
+  try {
+    const response = await productAPI.selectableSecrets(product.value.slug, {
+      sku_id: normalizeSkuId(selectedSku.value.id) || undefined,
+      page,
+      page_size: selectableSecretPageSize,
+    })
+    const rows = Array.isArray(response.data?.data) ? response.data.data : []
+    selectableSecrets.value = rows
+      .map((item: any) => ({
+        id: Number(item?.id || 0),
+        display_secret: String(item?.display_secret || '').trim(),
+      }))
+      .filter((item: { id: number; display_secret: string }) => item.id > 0 && item.display_secret)
+    selectableSecretPage.value = page
+    selectableSecretPagination.value = {
+      page: Number(response.data?.pagination?.page || page),
+      page_size: Number(response.data?.pagination?.page_size || selectableSecretPageSize),
+      total: Number(response.data?.pagination?.total || selectableSecrets.value.length),
+      total_page: Number(response.data?.pagination?.total_page || 1),
+    }
+    selectableSecrets.value.forEach((item) => {
+      selectedSecretDisplayMap.value[item.id] = item.display_secret
+    })
+    selectedSecretIds.value = selectedSecretIds.value.filter((id) => Boolean(selectedSecretDisplayMap.value[id]))
+  } catch (error) {
+    console.error('Failed to load selectable secrets:', error)
+    selectableSecrets.value = []
+    selectableSecretPagination.value = {
+      page: 1,
+      page_size: selectableSecretPageSize,
+      total: 0,
+      total_page: 1,
+    }
+  } finally {
+    selectableSecretLoading.value = false
+  }
+}
+
+const toggleSelectableSecret = (secretID: number) => {
+  const normalizedID = Math.trunc(Number(secretID))
+  if (normalizedID <= 0) return
+  if (selectedSecretIds.value.includes(normalizedID)) {
+    selectedSecretIds.value = selectedSecretIds.value.filter((item) => item !== normalizedID)
+    return
+  }
+  selectedSecretIds.value = [...selectedSecretIds.value, normalizedID]
+}
+
+const selectableSecretChecked = (secretID: number) => selectedSecretIds.value.includes(Math.trunc(Number(secretID)))
+
 const syncSelectedSku = () => {
   const rows = activeSkus.value
   if (rows.length === 0) {
@@ -701,12 +893,23 @@ const syncSelectedSku = () => {
   selectedSkuId.value = normalizeSkuId(rows[0]?.id)
 }
 
+const effectiveCartUnitPrice = () => {
+  const sku = selectedSku.value
+  const basePrice = Number(sku?.price_amount || product.value?.price_amount || 0)
+  const markup = selectedSecretCount.value > 0 ? secretSelectionMarkupAmount.value : 0
+  return (basePrice + markup).toFixed(2)
+}
+
 const selectedCartQuantity = () => {
   if (!product.value || !selectedSku.value) return 0
   const productId = Number(product.value.id || 0)
   const skuId = normalizeSkuId(selectedSku.value?.id)
   if (productId <= 0 || skuId <= 0) return 0
-  const matched = cartStore.items.find((item) => item.productId === productId && normalizeSkuId(item.skuId) === skuId)
+  const matched = cartStore.items.find((item) => (
+    item.productId === productId &&
+    normalizeSkuId(item.skuId) === skuId &&
+    sameSelectedSecretIds(item.selectedSecretIds || [], selectedSecretIds.value)
+  ))
   return Number(matched?.quantity || 0)
 }
 
@@ -721,7 +924,11 @@ const addToCart = () => {
   const sku = selectedSku.value
   const available = skuAvailableStock(sku)
   const cartQty = selectedCartQuantity()
-  const nextQuantity = cartQty + quantity.value
+  const nextQuantity = cartQty + effectivePurchaseQuantity.value
+  if (selectedSecretCount.value > 0 && cartQty > 0) {
+    purchaseWarning.value = '这些自选卡密已经在购物车中，请不要重复加入。'
+    return
+  }
   const productLimit = normalizeOptionalLimitNumber(product.value?.max_purchase_quantity)
   let effectiveLimit: number | null = productLimit
   if (available !== null) {
@@ -754,14 +961,17 @@ const addToCart = () => {
     skuStockEnforced: shouldEnforceSkuStock(sku),
     slug: product.value.slug,
     title: product.value.title,
-    priceAmount: String(sku?.price_amount || product.value.price_amount || '0.00'),
+    selectedSecretIds: [...selectedSecretIds.value],
+    selectedSecretDisplays: [...selectedSecretDisplays.value],
+    secretSelectionMarkupAmount: secretSelectionMarkupAmount.value > 0 ? secretSelectionMarkupAmount.value.toFixed(2) : undefined,
+    priceAmount: effectiveCartUnitPrice(),
     image: images.value[0],
     maxPurchaseQuantity: normalizeOptionalLimitNumber(product.value.max_purchase_quantity) ?? undefined,
     purchaseType: product.value.purchase_type,
     fulfillmentType: product.value.fulfillment_type,
     manualFormSchema: product.value.manual_form_schema || {},
-    quantity: quantity.value,
-  }, quantity.value)
+    quantity: effectivePurchaseQuantity.value,
+  }, effectivePurchaseQuantity.value)
   toast.success(t('toast.addedToCart'))
 }
 
@@ -781,7 +991,7 @@ const buyNow = () => {
   if (available !== null) {
     limit = limit === null ? available : Math.min(limit, available)
   }
-  if (limit !== null && quantity.value > limit) {
+  if (limit !== null && effectivePurchaseQuantity.value > limit) {
     purchaseWarning.value = available !== null && limit === available
       ? (available > 0 ? t('productDetail.addCartStockExceeded', { count: available }) : t('productDetail.stockUnavailable'))
       : t('productDetail.addCartLimitExceeded', { count: limit })
@@ -801,13 +1011,16 @@ const buyNow = () => {
     skuStockEnforced: shouldEnforceSkuStock(sku),
     slug: product.value.slug,
     title: product.value.title,
-    priceAmount: String(sku?.price_amount || product.value.price_amount || '0.00'),
+    selectedSecretIds: [...selectedSecretIds.value],
+    selectedSecretDisplays: [...selectedSecretDisplays.value],
+    secretSelectionMarkupAmount: secretSelectionMarkupAmount.value > 0 ? secretSelectionMarkupAmount.value.toFixed(2) : undefined,
+    priceAmount: effectiveCartUnitPrice(),
     image: images.value[0],
     maxPurchaseQuantity: normalizeOptionalLimitNumber(product.value.max_purchase_quantity) ?? undefined,
     purchaseType: product.value.purchase_type,
     fulfillmentType: product.value.fulfillment_type,
     manualFormSchema: product.value.manual_form_schema || {},
-    quantity: quantity.value,
+    quantity: effectivePurchaseQuantity.value,
   })
   router.push('/checkout?mode=buynow')
 }
@@ -833,6 +1046,7 @@ const loadProduct = async () => {
     console.error('Failed to load product:', error)
     product.value = null
     selectedSkuId.value = 0
+    resetSelectableSecrets()
   } finally {
     loading.value = false
   }
@@ -900,11 +1114,23 @@ onMounted(() => {
 
 watch(
   () => selectedSkuId.value,
-  () => {
+  async () => {
     purchaseWarning.value = ''
     quantity.value = 1
+    selectedSecretIds.value = []
+    selectedSecretDisplayMap.value = {}
+    await loadSelectableSecrets(1)
   }
 )
+
+watch(selectedSecretIds, (ids) => {
+  purchaseWarning.value = ''
+  if (ids.length > 0) {
+    quantity.value = ids.length
+  } else {
+    quantity.value = 1
+  }
+})
 
 watch(quantityEffectiveLimit, (limit) => {
   if (limit !== null && quantity.value > limit) {

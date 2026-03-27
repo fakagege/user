@@ -259,6 +259,9 @@
             </div>
 
             <!-- Warning -->
+            <p v-if="secretSelectionEnabled" class="mb-4 rounded-lg border theme-alert-warning px-3 py-2 text-xs font-medium">
+              该商品支持自选卡密，请进入详情页勾选后再购买。
+            </p>
             <p v-if="purchaseWarning" class="mb-4 rounded-lg theme-alert-warning px-3 py-2 text-xs font-medium">
               {{ purchaseWarning }}
             </p>
@@ -395,6 +398,11 @@ const selectedSku = computed(() => {
   if (selectedSkuId.value <= 0) return null
   return activeSkus.value.find((sku: any) => normalizeSkuId(sku?.id) === selectedSkuId.value) || null
 })
+
+const secretSelectionEnabled = computed(() => (
+  Boolean(props.product?.enable_secret_selection) &&
+  String(props.product?.fulfillment_type || '').trim() === 'auto'
+))
 
 // Stock helpers (same logic as ProductDetail)
 const normalizeStockNumber = (value: unknown) => {
@@ -555,6 +563,10 @@ const close = () => {
 
 const handleAddToCart = () => {
   if (!props.product || !canPurchase.value) return
+  if (secretSelectionEnabled.value) {
+    goToDetail()
+    return
+  }
   purchaseWarning.value = ''
 
   const sku = selectedSku.value
@@ -608,9 +620,13 @@ const handleAddToCart = () => {
 }
 
 const handleBuyNow = () => {
-  purchaseWarning.value = ''
   if (!canPurchase.value) return
   if (!props.product) return
+  if (secretSelectionEnabled.value) {
+    goToDetail()
+    return
+  }
+  purchaseWarning.value = ''
 
   const sku = selectedSku.value
   const available = skuAvailableStock(sku)

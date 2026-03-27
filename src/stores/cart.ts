@@ -4,6 +4,9 @@ import { ref, computed } from 'vue'
 export interface CartItem {
     productId: number
     skuId?: number
+    selectedSecretIds?: number[]
+    selectedSecretDisplays?: string[]
+    secretSelectionMarkupAmount?: string
     skuCode?: string
     skuSpecValues?: Record<string, any>
     skuManualStockTotal?: number
@@ -31,7 +34,31 @@ const normalizeSkuId = (value: unknown) => {
     return integerValue > 0 ? integerValue : 0
 }
 
-const cartIdentity = (item: Pick<CartItem, 'productId' | 'skuId'>) => `${item.productId}:${normalizeSkuId(item.skuId)}`
+const normalizeSelectedSecretIds = (value: unknown): number[] => {
+    if (!Array.isArray(value)) return []
+    return Array.from(
+        new Set(
+            value
+                .map((item) => Number(item))
+                .filter((item) => Number.isFinite(item) && item > 0)
+                .map((item) => Math.trunc(item))
+        )
+    )
+}
+
+const normalizeSelectedSecretDisplays = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return []
+    return value
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+}
+
+export const buildCartIdentity = (item: Pick<CartItem, 'productId' | 'skuId' | 'selectedSecretIds'>) => {
+    const selectedKey = normalizeSelectedSecretIds(item.selectedSecretIds).join(',')
+    return `${item.productId}:${normalizeSkuId(item.skuId)}:${selectedKey}`
+}
+
+const cartIdentity = (item: Pick<CartItem, 'productId' | 'skuId' | 'selectedSecretIds'>) => buildCartIdentity(item)
 
 const normalizeOptionalStockNumber = (value: unknown, allowUnlimited = false): number | undefined => {
     if (value === undefined || value === null || value === '') return undefined
@@ -86,6 +113,9 @@ const loadCartItems = (): CartItem[] => {
                     ...(item as CartItem),
                     productId: Math.trunc(productId),
                     skuId: normalizeSkuId(row.skuId),
+                    selectedSecretIds: normalizeSelectedSecretIds(row.selectedSecretIds ?? row.selected_secret_ids),
+                    selectedSecretDisplays: normalizeSelectedSecretDisplays(row.selectedSecretDisplays ?? row.selected_secret_displays),
+                    secretSelectionMarkupAmount: normalizeOptionalString(row.secretSelectionMarkupAmount ?? row.secret_selection_markup_amount),
                     skuManualStockTotal: normalizeOptionalStockNumber(row.skuManualStockTotal ?? row.sku_manual_stock_total, true),
                     skuManualStockLocked: normalizeOptionalStockNumber(row.skuManualStockLocked ?? row.sku_manual_stock_locked),
                     skuManualStockSold: normalizeOptionalStockNumber(row.skuManualStockSold ?? row.sku_manual_stock_sold),
@@ -117,6 +147,9 @@ export const useCartStore = defineStore('cart', () => {
             ...item,
             productId: Math.trunc(Number(item.productId)),
             skuId: normalizeSkuId(item.skuId),
+            selectedSecretIds: normalizeSelectedSecretIds(item.selectedSecretIds),
+            selectedSecretDisplays: normalizeSelectedSecretDisplays(item.selectedSecretDisplays),
+            secretSelectionMarkupAmount: normalizeOptionalString(item.secretSelectionMarkupAmount),
             skuManualStockTotal: normalizeOptionalStockNumber(item.skuManualStockTotal, true),
             skuManualStockLocked: normalizeOptionalStockNumber(item.skuManualStockLocked),
             skuManualStockSold: normalizeOptionalStockNumber(item.skuManualStockSold),
@@ -126,7 +159,10 @@ export const useCartStore = defineStore('cart', () => {
             skuStockSnapshotAt: normalizeOptionalString(item.skuStockSnapshotAt) || new Date().toISOString(),
             maxPurchaseQuantity: normalizeOptionalLimitNumber(item.maxPurchaseQuantity),
         }
-        const qty = clampCartQuantity(quantity, normalizedItem.maxPurchaseQuantity)
+        const selectedCount = normalizedItem.selectedSecretIds?.length || 0
+        const qty = selectedCount > 0
+            ? selectedCount
+            : clampCartQuantity(quantity, normalizedItem.maxPurchaseQuantity)
         const identity = cartIdentity(normalizedItem)
         const existing = items.value.find((entry) => cartIdentity(entry) === identity)
         if (existing) {
@@ -135,6 +171,9 @@ export const useCartStore = defineStore('cart', () => {
             existing.title = normalizedItem.title
             existing.priceAmount = normalizedItem.priceAmount
             existing.image = normalizedItem.image
+            existing.selectedSecretIds = normalizedItem.selectedSecretIds
+            existing.selectedSecretDisplays = normalizedItem.selectedSecretDisplays
+            existing.secretSelectionMarkupAmount = normalizedItem.secretSelectionMarkupAmount
             existing.maxPurchaseQuantity = normalizedItem.maxPurchaseQuantity
             existing.purchaseType = normalizedItem.purchaseType
             existing.fulfillmentType = normalizedItem.fulfillmentType
@@ -158,22 +197,30 @@ export const useCartStore = defineStore('cart', () => {
         persist()
     }
 
-    const updateQuantity = (productId: number, quantity: number, skuId?: number) => {
-        const identity = `${Math.trunc(Number(productId))}:${normalizeSkuId(skuId)}`
+    const updateQuantity = (productId: number, quantity: number, skuId?: number, selectedSecretIds?: number[]) => {
+        const identity = buildCartIdentity({ productId: Math.trunc(Number(productId)), skuId, selectedSecretIds })
         const target = items.value.find((entry) => cartIdentity(entry) === identity)
         if (!target) return
+        if ((target.selectedSecretIds?.length || 0) > 0) {
+            target.quantity = target.selectedSecretIds!.length
+            persist()
+            return
+        }
         const qty = clampCartQuantity(quantity, target.maxPurchaseQuantity)
         target.quantity = qty
         persist()
     }
 
-    const patchItem = (productId: number, skuId: number | undefined, patch: Partial<CartItem>) => {
-        const identity = `${Math.trunc(Number(productId))}:${normalizeSkuId(skuId)}`
+    const patchItem = (productId: number, skuId: number | undefined, patch: Partial<CartItem>, selectedSecretIds?: number[]) => {
+        const identity = buildCartIdentity({ productId: Math.trunc(Number(productId)), skuId, selectedSecretIds })
         const target = items.value.find((entry) => cartIdentity(entry) === identity)
         if (!target) return
         Object.assign(target, patch)
         target.productId = Math.trunc(Number(target.productId))
         target.skuId = normalizeSkuId(target.skuId)
+        target.selectedSecretIds = normalizeSelectedSecretIds(target.selectedSecretIds)
+        target.selectedSecretDisplays = normalizeSelectedSecretDisplays(target.selectedSecretDisplays)
+        target.secretSelectionMarkupAmount = normalizeOptionalString(target.secretSelectionMarkupAmount)
         target.skuManualStockTotal = normalizeOptionalStockNumber(target.skuManualStockTotal, true)
         target.skuManualStockLocked = normalizeOptionalStockNumber(target.skuManualStockLocked)
         target.skuManualStockSold = normalizeOptionalStockNumber(target.skuManualStockSold)
@@ -185,8 +232,8 @@ export const useCartStore = defineStore('cart', () => {
         persist()
     }
 
-    const removeItem = (productId: number, skuId?: number) => {
-        const identity = `${Math.trunc(Number(productId))}:${normalizeSkuId(skuId)}`
+    const removeItem = (productId: number, skuId?: number, selectedSecretIds?: number[]) => {
+        const identity = buildCartIdentity({ productId: Math.trunc(Number(productId)), skuId, selectedSecretIds })
         items.value = items.value.filter((entry) => cartIdentity(entry) !== identity)
         persist()
     }
